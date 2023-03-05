@@ -30,6 +30,7 @@ function start() {
                 Sistema_funcoes.emit('Sacar')
             } else {
                 console.log(chalk.bgBlueBright.white("Muito obrigado por usar o nosso Sistema!!"))
+                process.exit()
             }
         })
 }
@@ -53,8 +54,16 @@ function registro_conta() {
                 fs.mkdirSync("contas");
             }
 
+
+            if (fs.existsSync(`contas/${nome.nome_conta}.json`)) {
+                console.log(chalk.bgRedBright.black('Conta já existe!'))
+                start()
+                return
+            }
+
             fs.writeFileSync(`contas/${nome.nome_conta}.json`, JSON.stringify(conta), function (err) {
                 console.log(err)
+
             })
 
             console.log(chalk.bgBlue.black(`Seja bem vindo ao nosso banco ${nome.nome_conta}`))
@@ -70,6 +79,12 @@ Sistema_funcoes.on('Consultar_Conta', () => {
         }
     ]).then((conta) => {
         busca(conta.Consulta_conta)
+
+        if (!busca(conta.Consulta_conta)) {
+            console.log(chalk.bgRed.black("Conta não existe"))
+            return Sistema_funcoes.emit('Consultar_Conta')
+        }
+
         fs.readFile(`contas/${conta.Consulta_conta}.json`, 'utf-8', (err, data) => {
             let json = JSON.parse(data)
             let saldo = json.saldo
@@ -87,6 +102,12 @@ Sistema_funcoes.on('Depositar', () => {
     }]).then((conta) => {
         const conta_operacao_bancaria = conta.Escolha_conta
         busca(conta_operacao_bancaria)
+
+        if (!busca(conta.Escolha_conta)) {
+            console.log(chalk.bgRed.black("Conta não existe"))
+            return Sistema_funcoes.emit('Depositar')
+        }
+
         valor(conta_operacao_bancaria, (saldo) => {
             inquirer.prompt(
                 [
@@ -96,10 +117,14 @@ Sistema_funcoes.on('Depositar', () => {
                     },
                 ]
             ).then((valor) => {
-                let valor_real = parseInt(valor.Deposito)
-                let transacao_bancaria = valor_real + saldo
-                atualiza_saldo(transacao_bancaria, conta_operacao_bancaria)
-
+                if (!valor.Deposito) {
+                    console.log(chalk.bgRed.white("Valor invalido !"))
+                    Sistema_funcoes.emit('Depositar')
+                } else {
+                    let valor_real = parseInt(valor.Deposito)
+                    let transacao_bancaria = valor_real + saldo
+                    atualiza_saldo(transacao_bancaria, conta_operacao_bancaria)
+                }
             })
         })
     })
@@ -108,27 +133,42 @@ Sistema_funcoes.on('Depositar', () => {
 Sistema_funcoes.on('Sacar', () => {
     inquirer.prompt([{
         name: 'Conta_para_saque',
-        message: 'Gostaria de retirar $$ de qual conta ?'
+        message: 'Escolha a conta ?'
     }]).then((conta) => {
         const conta_operacao_bancaria = conta.Conta_para_saque
         busca(conta_operacao_bancaria)
+
+        if (!busca(conta_operacao_bancaria)) {
+            console.log(chalk.bgRed.black("Conta não existe"))
+            return Sistema_funcoes.emit('Sacar')
+        }
+
         valor(conta_operacao_bancaria, (saldo) => {
             inquirer.prompt(
                 [
                     {
-                        name: "Deposito",
+                        name: "Valor_Saque",
                         message: "Quanto você gostaria de sacar ?"
                     },
                 ]
             ).then((valor) => {
-                let valor_real = parseInt(valor.Deposito)
-                if (saldo > valor_real) {
-                    let transacao_bancaria = saldo - valor_real
-                    atualiza_saldo(transacao_bancaria, conta_operacao_bancaria)
+                let valor_real = parseInt(valor.Valor_Saque)
+
+                if (!valor_real) {
+                    console.log(chalk.bgRed.white("Valor invalido !"))
+                    Sistema_funcoes.emit('Sacar')
                 } else {
-                    console.log(chalk.bgRed.black("Saldo insuficiente para saque"))
-                    start()
+                    if (saldo > valor_real) {
+                        let transacao_bancaria = valor_real - saldo
+                        atualiza_saldo(transacao_bancaria, conta_operacao_bancaria)
+                    } else {
+                        console.log(chalk.bgRed.black("Saldo insuficiente para saque"))
+                        start()
+                    }
                 }
+
+
+
 
             })
         })
@@ -149,11 +189,10 @@ function atualiza_saldo(novo_saldo, conta) {
 
 function busca(conta_procurada) {
     if (!fs.existsSync(`contas/${conta_procurada}.json`)) {
-        console.log(chalk.bgRed.black("Conta não existe"))
-        console.log(chalk.bgRed.black("Por favor, crie uma conta"))
-        start()
+        return false
     }
 
+    return true
 }
 
 function valor(conta, callback) {

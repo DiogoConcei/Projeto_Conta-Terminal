@@ -29,3 +29,7 @@ O sistema funciona por meio de eventos. Quando o usuário escolhe uma opção no
 ### Licença
 
 Este projeto está licenciado sob a Licença MIT. Veja o arquivo LICENSE para mais detalhes.
+
+### Autor
+
+Autor: Diogo da Conceição
